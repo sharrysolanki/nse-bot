@@ -1,4 +1,5 @@
-import os, requests
+import os, requests, threading
+from flask import Flask
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 
@@ -10,6 +11,11 @@ MAP = {
     "HDFCBANK": "HDFCBANK", "ICICI": "ICICIBANK", "ICICIBANK": "ICICIBANK",
     "SBIN": "SBIN", "SBI": "SBIN", "ITC": "ITC", "LT": "LT",
 }
+
+# Flask for Render keep-alive
+app_flask = Flask(__name__)
+@app_flask.route('/')
+def home(): return "Bot is Live 24x7!"
 
 def get_live_price_moneycontrol(symbol):
     try:
@@ -92,7 +98,7 @@ async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Stock bhejo: AIRTEL, TCS, ONGC, RELIANCE")
 
-if __name__ == "__main__":
+def run_bot():
     print("Starting FINAL REAL bot...")
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -100,3 +106,7 @@ if __name__ == "__main__":
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle))
     print("✅ REAL LIVE READY")
     app.run_polling(drop_pending_updates=True)
+
+if __name__ == "__main__":
+    threading.Thread(target=run_bot).start()
+    app_flask.run(host='0.0.0.0', port=10000)
