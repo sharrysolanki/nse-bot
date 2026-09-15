@@ -1,5 +1,6 @@
 import os
 import threading
+import asyncio
 from flask import Flask
 import yfinance as yf
 from telegram import Update
@@ -32,13 +33,18 @@ async def help_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def get_stock_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     symbol = update.message.text.upper().strip()
-    if len(symbol) > 10 or " " in symbol:
-        return # bakwaas message ignore
+    if len(symbol) > 10 or " " in symbol or symbol.startswith("/"):
+        return
 
     try:
         await update.message.reply_text(f"🔍 {symbol} ka live data la raha hu...")
-        ticker = yf.Ticker(symbol + ".NS")
-        hist = ticker.history(period="1d")
+
+        # yfinance ko alag thread me chalao - yahi tera crash fix hai
+        def fetch_data():
+            ticker = yf.Ticker(symbol + ".NS")
+            return ticker.history(period="1d")
+
+        hist = await asyncio.to_thread(fetch_data)
         
         if hist.empty:
             await update.message.reply_text(f"❌ {symbol} NSE pe nahi mila. Sahi symbol likho.")
@@ -73,12 +79,12 @@ def run_flask():
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
-    # IMPORTANT: Flask ko background thread me
+    # Flask ko background thread me
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     print("Flask started in background thread")
 
-    # IMPORTANT: Bot ko MAIN thread me chalao - tabhi Render pe chalega
+    # Bot ko MAIN thread me chalao - tabhi Render pe chalega
     print("Bot starting in MAIN thread...")
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     
